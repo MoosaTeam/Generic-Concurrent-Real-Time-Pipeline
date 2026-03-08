@@ -1,0 +1,39 @@
+@startuml
+participant Main
+participant ConfigParser
+queue RawQueue as "Raw Data\n(Queue 1)"
+queue ProcessedQueue as "Processed Data\n(Queue 2)"
+participant Input
+participant CoreWorkers
+participant Telemetry
+participant Output
+
+Main -> ConfigParser : Load config.json
+Main -> RawQueue : create bounded queue
+Main -> ProcessedQueue : create bounded queue
+Main -> Telemetry : initialize(RawQueue, ProcessedQueue)
+Main -> Input : start Process(RawQueue)
+Main -> CoreWorkers : start Processes(RawQueue, ProcessedQueue)
+Main -> Output : start Process(ProcessedQueue, Telemetry)
+
+par Concurrent Pipeline Execution
+    loop File Read Stream
+        Input -> Input : parse, map schema & cast types
+        Input -> RawQueue : put(generic_packet)
+    end
+
+    loop Core Processing Stream
+        CoreWorkers <- RawQueue : get()
+        CoreWorkers -> CoreWorkers : purely functional transformation
+        CoreWorkers -> ProcessedQueue : put(processed_result)
+    end
+
+    loop Dashboard & Telemetry Monitor
+        Telemetry -> RawQueue : qsize()
+        Telemetry -> ProcessedQueue : qsize()
+        Telemetry -> Output : notify(sizes)
+        Output <- ProcessedQueue : get()
+        Output -> Output : render charts & update color indicators
+    end
+end
+@enduml
