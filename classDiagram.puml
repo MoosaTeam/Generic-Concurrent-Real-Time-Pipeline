@@ -1,0 +1,49 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+interface Observer {
+    + update(q1_size: int, q2_size: int)
+}
+
+class PipelineTelemetry {
+    - observers: List<Observer>
+    - raw_queue: multiprocessing.Queue
+    - processed_queue: multiprocessing.Queue
+    + attach(o: Observer)
+    + poll_queues()
+    + notify()
+}
+
+class Main {
+    + main()
+}
+
+class InputModule {
+    - q_out: multiprocessing.Queue
+    - config: dict
+    + process_stream()
+}
+
+class CoreModule {
+    - q_in: multiprocessing.Queue
+    - q_out: multiprocessing.Queue
+    - config: dict
+    + functional_transform(data, state)
+    + run_worker()
+}
+
+class OutputModule {
+    - q_in: multiprocessing.Queue
+    - config: dict
+    - telemetry: PipelineTelemetry
+    + render_dashboard()
+    + update(q1_size: int, q2_size: int)
+}
+
+Observer <|.. OutputModule
+PipelineTelemetry o-- Observer
+Main --> InputModule : wraps in Process
+Main --> CoreModule : wraps in Process
+Main --> OutputModule : wraps in Process
+Main --> PipelineTelemetry : initializes with Queues
+@enduml
