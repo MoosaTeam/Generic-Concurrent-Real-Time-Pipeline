@@ -1,67 +1,36 @@
-================================================================================
-Project Phase 3: Generic Concurrent Real-Time Pipeline
-================================================================================
+# Project Phase 3: Generic Concurrent Real-Time Pipeline
 
-Creators:
-- Muhammad Moosa: 24L-0561
-- Syed Abdullah: 24L-0595
+**Creators:**
+- Muhammad Moosa (24L-0561)
+- Syed Abdullah (24L-0595)
 
-OVERVIEW:
----------
-This system is a generalized, domain-agnostic, concurrent data-processing 
-pipeline. It dynamically ingests, processes, and visualizes unseen datasets 
-strictly based on a JSON configuration file. It utilizes Python's 
-`multiprocessing` library to achieve parallel execution via a Producer-Consumer 
-architecture, complete with real-time backpressure telemetry implemented via 
-the Observer pattern.
+## 📌 Overview
+[cite_start]This system elevates a basic data analysis script into a generalized, concurrent data-processing pipeline[cite: 3, 4]. [cite_start]It dynamically ingests, processes, and visualizes completely unseen datasets driven entirely by a JSON configuration file[cite: 5, 6]. 
 
-DIRECTORY STRUCTURE & SETUP:
-----------------------------
+[cite_start]By utilizing Python's standard `multiprocessing` library, the pipeline achieves true parallel execution via a Producer-Consumer architecture, complete with real-time dashboard telemetry that demonstrates system backpressure[cite: 7, 14].
+
+## 🏗️ System Architecture & Constraints
+
+* [cite_start]**Strict Decoupling:** The Input, Core, and Output modules are strictly locked and domain-agnostic[cite: 9, 10].
+* [cite_start]**Producer-Consumer Streams:** Utilizes two bounded `multiprocessing.Queue` instances to pass generic data packets between isolated processes[cite: 16, 17]. 
+* **The Functional Core:** The internal transformation logic of the Core workers (e.g., calculating a running average) is completely functional. [cite_start]We strictly avoid mutable global variables and standard append-based lists to prevent race conditions[cite: 20, 21, 22].
+* [cite_start]**Telemetry via Observer Pattern:** The dashboard UI (Observer) subscribes to a Pipeline Telemetry object (Subject) to dynamically render real-time visual indicators of queue capacities (Green, Yellow, Red)[cite: 27, 29, 30, 32].
+* [cite_start]**Natural Backpressure:** If the input stream exceeds the processing capacity of the core workers, the bounded queues naturally fill up, automatically throttling the Input module[cite: 19].
+
+## 📂 Directory Structure
+
 For the pipeline to execute correctly, the files must be organized as follows:
 
-/ (Root Directory)
-|-- main.py                 <-- THE MAIN EXECUTABLE
-|-- config.json             <-- Configuration file
-|-- config_parser.py
-|-- input_module.py
-|-- core_module.py
-|-- output_module.py
-|-- telemetry.py
-|-- readme.txt
-|-- diagrams/               <-- Contains PlantUML codes and generated images
-|-- data/                   <-- PLACE THE UNSEEN DATASET HERE
-    |-- unseen_dataset.csv
-
-HOW TO RUN FOR FINAL EVALUATION (TA INSTRUCTIONS):
---------------------------------------------------
-1. Extract the zip file contents.
-2. Place your evaluation dataset inside the `data/` folder.
-3. Replace or modify the `config.json` file in the root directory to match the 
-   unseen dataset's schema and your desired pipeline dynamics.
-4. Open a terminal at the root directory and execute:
-   
-   python main.py
-
-IMPORTANT HARDWARE NOTE:
-------------------------
-The pipeline's concurrency is dictated by the `core_parallelism` value in 
-`config.json`. If you run this on a machine with a lower core count (e.g., a 
-dual-core processor), setting `core_parallelism` to 3 or higher will cause 
-severe CPU bottlenecking and terminal tearing. Adjust `core_parallelism` in 
-the configuration file according to the host machine's physical hardware 
-capabilities.
-
-ARCHITECTURE HIGHLIGHTS:
-------------------------
-- Strict Decoupling: The Input, Core, and Output modules are strictly locked 
-  and domain-agnostic.
-- The Functional Core: The Core workers process data streams using purely 
-  functional logic, avoiding mutable global variables to prevent race conditions 
-  in the multiprocessing queues.
-- Telemetry & Observer Pattern: The dashboard UI strictly observes the queue 
-  capacities independently, displaying visual indicators (Green/Yellow/Red) 
-  as backpressure naturally builds when input speed exceeds core processing.
-- Graceful Shutdown: The pipeline utilizes poison pills passed through the 
-  multiprocessing queues to cleanly terminate all workers once the EOF is reached.
-
-================================================================================
+```text
+/
+├── main.py                 # The central orchestrator & main executable
+├── config.json             # Configuration file dictating pipeline behavior
+├── config_parser.py        # Logic for parsing the configuration file
+├── input_module.py         # Dynamic ingestion & schema mapping (Producer)
+├── core_module.py          # Functional processing workers (Consumers/Producers)
+├── output_module.py        # Real-time dashboard UI (Observer/Consumer)
+├── telemetry.py            # Queue monitoring (Subject)
+├── README.md               # Project documentation
+├── diagrams/               # Contains PlantUML codes and generated design artifacts
+└── data/                   # PLACE THE UNSEEN DATASET HERE
+    └── unseen_dataset.csv
