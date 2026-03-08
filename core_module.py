@@ -1,3 +1,6 @@
+import time
+
+
 class CoreModule:
     def __init__(self, config, raw_queue, processed_queue):
         """
@@ -15,7 +18,7 @@ class CoreModule:
         """
         # Create a new tuple with the new value (tuples are immutable in Python)
         updated_window = current_window + (new_value,)
-        
+
         # If we exceed the window size, slice to create a new tuple
         if len(updated_window) > max_size:
             updated_window = updated_window[1:]
@@ -28,7 +31,7 @@ class CoreModule:
         Pulls from the Raw Data Stream, performs operations, and pushes to Processed Stream[cite: 17].
         """
         print("[CoreWorker] Started processing stream...")
-        
+
         # State is maintained locally within the process loop, NOT as a class attribute
         current_window = ()
 
@@ -44,7 +47,7 @@ class CoreModule:
             metric = packet.get("metric_value")
 
             if metric is not None:
-                # 2. Apply purely functional transformation 
+                # 2. Apply purely functional transformation
                 # We overwrite the local variable with the NEW state returned by the pure function
                 current_window, computed_avg = self._pure_running_average(
                     metric, current_window, self.window_size
@@ -52,6 +55,7 @@ class CoreModule:
 
                 # Add the computed metric to the generic packet
                 packet["computed_metric"] = computed_avg
+                time.sleep(0.5)
 
             # 3. Push the results into the second bounded queue [cite: 17]
             self.processed_queue.put(packet)
