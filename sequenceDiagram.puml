@@ -1,39 +1,46 @@
 @startuml
 participant Main
 participant ConfigParser
-queue RawQueue as "Raw Data\n(Queue 1)"
-queue ProcessedQueue as "Processed Data\n(Queue 2)"
-participant Input
-participant CoreWorkers
-participant Telemetry
-participant Output
+queue RawQueue as "Raw Data (Q1)"
+participant CoreWorkers as "Core Workers (Scatter)"
+queue VerifiedQueue as "Verified Data (Q2)"
+participant Aggregator as "Aggregator (Gather)"
+queue ProcessedQueue as "Processed Data (Q3)"
+participant Output as "Dashboard"
 
 Main -> ConfigParser : Load config.json
 Main -> RawQueue : create bounded queue
+Main -> VerifiedQueue : create bounded queue
 Main -> ProcessedQueue : create bounded queue
-Main -> Telemetry : initialize(RawQueue, ProcessedQueue)
-Main -> Input : start Process(RawQueue)
-Main -> CoreWorkers : start Processes(RawQueue, ProcessedQueue)
-Main -> Output : start Process(ProcessedQueue, Telemetry)
 
-par Concurrent Pipeline Execution
-    loop File Read Stream
-        Input -> Input : parse, map schema & cast types
-        Input -> RawQueue : put(generic_packet)
+Main -> CoreWorkers : start N Processes
+Main -> Aggregator : start 1 Process
+Main -> Output : start 1 Process
+
+par Concurrent Scatter-Gather Pipeline
+    loop Input Stream
+        Main -> RawQueue : InputModule pushes generic_packet
     end
 
-    loop Core Processing Stream
+    loop Cryptographic Verification (Parallel)
         CoreWorkers <- RawQueue : get()
-        CoreWorkers -> CoreWorkers : purely functional transformation
-        CoreWorkers -> ProcessedQueue : put(processed_result)
+        CoreWorkers -> CoreWorkers : generate_signature(PBKDF2)
+        alt Signature Matches
+            CoreWorkers -> VerifiedQueue : put(verified_packet)
+        else Fake Data
+            CoreWorkers -> CoreWorkers : drop packet
+        end
     end
 
-    loop Dashboard & Telemetry Monitor
-        Telemetry -> RawQueue : qsize()
-        Telemetry -> ProcessedQueue : qsize()
-        Telemetry -> Output : notify(sizes)
+    loop Sequential Aggregation (Single Process)
+        Aggregator <- VerifiedQueue : get()
+        Aggregator -> Aggregator : _pure_running_average()
+        Aggregator -> ProcessedQueue : put(final_packet)
+    end
+
+    loop UI Rendering
         Output <- ProcessedQueue : get()
-        Output -> Output : render charts & update color indicators
+        Output -> Output : draw charts & telemetry
     end
 end
 @enduml
