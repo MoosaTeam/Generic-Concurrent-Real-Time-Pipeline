@@ -8,6 +8,7 @@ class PipelineConfig:
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found at {config_path}")
 
+        # THIS MUST HAPPEN FIRST! Load the JSON into self._config
         with open(config_path, "r") as file:
             self._config = json.load(file)
 
@@ -16,10 +17,16 @@ class PipelineConfig:
     def dataset_path(self):
         return self._config.get("dataset_path")
 
+    @property
+    def secret_key(self):
+        return self._config.get("secret_key", "")
+
     # --- Pipeline Dynamics ---
     @property
     def input_delay_seconds(self):
-        return self._config.get("pipeline_dynamics", {}).get("input_delay_seconds", 0.1)
+        return self._config.get("pipeline_dynamics", {}).get(
+            "input_delay_seconds", 0.01
+        )
 
     @property
     def core_parallelism(self):
@@ -28,23 +35,18 @@ class PipelineConfig:
     @property
     def stream_queue_max_size(self):
         return self._config.get("pipeline_dynamics", {}).get(
-            "stream_queue_max_size", 100
+            "stream_queue_max_size", 50
         )
+
+    @property
+    def window_size(self):
+        return self._config.get("pipeline_dynamics", {}).get("window_size", 5)
 
     # --- Schema Mapping ---
     @property
     def schema_columns(self):
         """Returns the list of column mappings to cast types correctly."""
-        return self._config.get("schema_mapping", {}).get("columns", [])
-
-    # --- Processing ---
-    @property
-    def processing_operation(self):
-        return self._config.get("processing", {}).get("operation")
-
-    @property
-    def window_size(self):
-        return self._config.get("processing", {}).get("running_average_window_size", 10)
+        return self._config.get("schema_columns", [])
 
     # --- Visualizations ---
     @property
@@ -56,5 +58,6 @@ if __name__ == "__main__":
     # Quick test to ensure it works
     config = PipelineConfig()
     print(f"Dataset Path: {config.dataset_path}")
+    print(f"Secret Key: {config.secret_key}")
     print(f"Core Parallelism: {config.core_parallelism}")
     print(f"Columns to map: {len(config.schema_columns)}")

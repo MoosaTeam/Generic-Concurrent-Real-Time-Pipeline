@@ -1,57 +1,66 @@
+import hashlib
+
+
 class CoreModule:
-    def __init__(self, config, raw_queue, processed_queue):
+    def __init__(self, config_dict, raw_queue, verified_queue):
         """
-        Initializes the Core Module, completely unaware of what the data represents[cite: 12].
+        Initializes the Core Module. It now acts as the cryptographic verification layer.
         """
-        self.config = config
         self.raw_queue = raw_queue
-        self.processed_queue = processed_queue
-        self.window_size = self.config.window_size
+        # Note: We push to the verified_queue now, NOT the processed_queue
+        self.verified_queue = verified_queue
 
-    def _pure_running_average(self, new_value, current_window, max_size):
-        """
-        Purely functional transformation.
-        Takes inputs and returns a NEW state and result without mutating variables.
-        """
-        # Create a new tuple with the new value (tuples are immutable in Python)
-        updated_window = current_window + (new_value,)
-        
-        # If we exceed the window size, slice to create a new tuple
-        if len(updated_window) > max_size:
-            updated_window = updated_window[1:]
+        # Grab the secret key from the config dictionary
+        self.secret_key = config_dict.secret_key
+        self.iterations = 100000
 
-        avg = sum(updated_window) / len(updated_window)
-        return updated_window, avg
+    def generate_signature(self, raw_value_str: str, key: str, iterations: int) -> str:
+        """
+        Generates a PBKDF2 HMAC SHA-256 signature.
+        Provided by the professor in readme.txt.
+        """
+        password_bytes = key.encode("utf-8")
+        salt_bytes = raw_value_str.encode("utf-8")
+
+        hash_bytes = hashlib.pbkdf2_hmac(
+            hash_name="sha256",
+            password=password_bytes,
+            salt=salt_bytes,
+            iterations=iterations,
+        )
+        return hash_bytes.hex()
 
     def run_worker(self):
         """
-        Pulls from the Raw Data Stream, performs operations, and pushes to Processed Stream[cite: 17].
+        Pulls from Raw Data Stream, verifies authenticity, and pushes valid data to the Aggregator.
         """
-        print("[CoreWorker] Started processing stream...")
-        
-        # State is maintained locally within the process loop, NOT as a class attribute
-        current_window = ()
+        print("[CoreWorker] Started cryptographic verification...")
 
         while True:
-            # 1. Pull from Raw Data Stream (blocks until data is available) [cite: 17]
+            # 1. Pull from Raw Data Stream
             packet = self.raw_queue.get()
 
-            # Handle a poison pill for graceful shutdown (optional but good practice)
+            # Poison pill handling
             if packet is None:
+                self.verified_queue.put(None)
                 break
 
-            # The generic internal mapping we defined in the config
             metric = packet.get("metric_value")
+            provided_signature = packet.get("auth_signature")
 
-            if metric is not None:
-                # 2. Apply purely functional transformation 
-                # We overwrite the local variable with the NEW state returned by the pure function
-                current_window, computed_avg = self._pure_running_average(
-                    metric, current_window, self.window_size
+            if metric is not None and provided_signature is not None:
+                # 2. The professor's rules state the raw_value must be rounded to 2 decimal places
+                raw_value_str = f"{metric:.2f}"
+
+                # 3. Compute the heavy hash
+                computed_hash = self.generate_signature(
+                    raw_value_str, self.secret_key, self.iterations
                 )
 
-                # Add the computed metric to the generic packet
-                packet["computed_metric"] = computed_avg
-
-            # 3. Push the results into the second bounded queue [cite: 17]
-            self.processed_queue.put(packet)
+                # 4. Authenticate!
+                if computed_hash == provided_signature:
+                    # It's authentic! Push to the Aggregator's queue
+                    self.verified_queue.put(packet)
+                else:
+                    # FAKE DATA! We just let the loop continue, effectively dropping the packet.
+                    pass

@@ -1,34 +1,29 @@
 {
-  "dataset_path": "data/unseen_climate_data.csv",
+  "dataset_path": "data/sample_sensor_data.csv",
+  "secret_key": "sda_spring_2026_secure_key",
   "pipeline_dynamics": {
     "input_delay_seconds": 0.01,
-    "core_parallelism": 3,
-    "stream_queue_max_size": 50
+    "core_parallelism": 5,
+    "stream_queue_max_size": 50,
+    "window_size": 5
   },
-  "schema_mapping": {
-    "target_entity": "Region",
-    "columns": [
-      {
-        "source_name": "Country Name",
-        "internal_mapping": "entity_name",
-        "data_type": "string"
-      },
-      {
-        "source_name": "Year",
-        "internal_mapping": "time_period",
-        "data_type": "integer"
-      },
-      {
-        "source_name": "Average_Temperature_C",
-        "internal_mapping": "metric_value",
-        "data_type": "float"
-      }
-    ]
-  },
-  "processing": {
-    "operation": "running_average",
-    "running_average_window_size": 10
-  },
+  "schema_columns": [
+    {
+      "source_name": "Timestamp",
+      "internal_mapping": "time_period",
+      "data_type": "integer"
+    },
+    {
+      "source_name": "Raw_Value",
+      "internal_mapping": "metric_value",
+      "data_type": "float"
+    },
+    {
+      "source_name": "Auth_Signature",
+      "internal_mapping": "auth_signature",
+      "data_type": "string"
+    }
+  ],
   "visualizations": {
     "telemetry": {
       "show_raw_stream": true,
@@ -36,14 +31,14 @@
     },
     "data_charts": [
       {
-        "type": "real_time_line_graph_values",
-        "title": "Live Temperature Values",
+        "type": "real_time_line_graph",
+        "title": "Live Sensor Values (Authentic Only)",
         "x_axis": "time_period",
         "y_axis": "metric_value"
       },
       {
         "type": "real_time_line_graph_average",
-        "title": "Live Temperature Running Average",
+        "title": "Live Sensor Running Average",
         "x_axis": "time_period",
         "y_axis": "computed_metric"
       }
