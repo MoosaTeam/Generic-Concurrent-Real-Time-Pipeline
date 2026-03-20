@@ -6,44 +6,59 @@ interface Observer {
 }
 
 class PipelineTelemetry {
-    - observers: List<Observer>
-    - raw_queue: multiprocessing.Queue
-    - processed_queue: multiprocessing.Queue
-    + attach(o: Observer)
-    + poll_queues()
-    + notify()
+    
+observers: List<Observer>
+raw_queue: multiprocessing.Queue
+processed_queue: multiprocessing.Queue
++ attach(o: Observer)+ poll_queues()+ notify()
+}
+
+class PipelineConfig {
+    + dataset_path: str
+    + secret_key: str
+    + core_parallelism: int
+    + window_size: int
+    + schema_columns: list
+}
+
+class InputModule {
+    
+raw_queue: multiprocessing.Queue
+config: PipelineConfig+ run()
+}
+
+class CoreModule {
+    
+raw_queue: multiprocessing.Queue
+verified_queue: multiprocessing.Queue
+secret_key: str
++ generate_signature(raw_value_str, key, iterations): str+ run_worker()
+}
+
+class AggregatorModule {
+    
+verified_queue: multiprocessing.Queue
+processed_queue: multiprocessing.Queue
+window_size: int
++ _pure_running_average(new_value, current_window, max_size)+ run_aggregator()
+}
+
+class OutputModule {
+    
+processed_queue: multiprocessing.Queue
+telemetry: PipelineTelemetry+ render_dashboard()+ update(q1_size: int, q2_size: int)
 }
 
 class Main {
     + main()
 }
 
-class InputModule {
-    - q_out: multiprocessing.Queue
-    - config: dict
-    + process_stream()
-}
-
-class CoreModule {
-    - q_in: multiprocessing.Queue
-    - q_out: multiprocessing.Queue
-    - config: dict
-    + functional_transform(data, state)
-    + run_worker()
-}
-
-class OutputModule {
-    - q_in: multiprocessing.Queue
-    - config: dict
-    - telemetry: PipelineTelemetry
-    + render_dashboard()
-    + update(q1_size: int, q2_size: int)
-}
-
 Observer <|.. OutputModule
 PipelineTelemetry o-- Observer
+Main --> PipelineConfig : loads
 Main --> InputModule : wraps in Process
-Main --> CoreModule : wraps in Process
+Main --> CoreModule : wraps multiple in Process
+Main --> AggregatorModule : wraps in Process
 Main --> OutputModule : wraps in Process
-Main --> PipelineTelemetry : initializes with Queues
+Main --> PipelineTelemetry : initializes
 @enduml
